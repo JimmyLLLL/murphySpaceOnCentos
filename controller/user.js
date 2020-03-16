@@ -213,6 +213,7 @@ module.exports = {
             let ext = extArr[dotNum-1]
             const name = `${fileName}.${ext}`
             let filePath = path.join(__dirname, '../public/uploads/avator') + '/' +name;
+	    console.log(filePath);
             //文件名构建结束
             // 创建可写流
             const upStream = fs.createWriteStream(filePath);

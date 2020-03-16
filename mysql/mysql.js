@@ -52,7 +52,7 @@ let posts =
      moment VARCHAR(100) NOT NULL,
      comments VARCHAR(200) NOT NULL DEFAULT '0',
      pv VARCHAR(40) NOT NULL DEFAULT '0',
-     avator VARCHAR(100),
+     avator VARCHAR(100) DEFAULT 'default.jpeg',
      PRIMARY KEY ( id )
     );`
 
