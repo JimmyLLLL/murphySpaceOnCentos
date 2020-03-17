@@ -204,7 +204,7 @@ let findAllPost = function () {
 }
 // 查询分页文章
 let findPostByPage = function (page) {
-  let _sql = ` select * FROM posts ORDER BY moment DESC limit ${(page-1)*10},10;`
+  let _sql = ` select * FROM posts ORDER BY moment DESC limit ${(page-1)*20},20;`
   return query( _sql)
 }
 // 查询个人分页文章

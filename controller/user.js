@@ -322,14 +322,14 @@ module.exports = {
         const page = ctx.request.body.page
         try{
             const data = await mysql.findPostByPage(page)
-            ctx.body = {
-                code:1,
-                data
-            }
+            data.forEach((item)=>{
+                delete item.content
+            })
+            ctx.body = data
         }catch(e){
-            console.log(e)
+            ctx.status = 500
             ctx.body = {
-                code:0
+                message:'服务端错误，请联系开发者 Murphy Lam'
             }
         }
     },
@@ -405,24 +405,29 @@ module.exports = {
                 const nickname = returnInfo[0].nickname;
                 const word = returnInfo[0].word;
                 const avator = returnInfo[0].avator;
+                ctx.cookies.set(
+                    'token',token,{
+                        domain:'127.0.0.1:8081', // 写cookie所在的域名
+                        path:'/',       // 写cookie所在的路径
+                        httpOnly:true,  // 是否只用于http请求中获取
+                        expires:  new Date(new Date().getTime()+60 * 60 *24)
+                    }
+                )
                 ctx.body = {
-                    code:1,
-                    token,
                     account,
                     word,
                     nickname,
                     avator
                 }
             }else{
+                ctx.status = 401
                 ctx.body = {
-                    code:-1
+                    message:'密码校验错误'
                 }
             }             
         }catch(e){
             console.log(e)
-            ctx.body = {
-                code:-2
-            }
+            ctx.body = {}
         }
     },
 
