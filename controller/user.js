@@ -3,13 +3,13 @@ const jwt = require('jsonwebtoken')
 const KoaStatic = require('koa-static')
 const fs = require('fs')
 const path = require('path')
+const secret = 'JimmyLam';
 
 
 module.exports = {
     async handleBlogDelete(ctx){
         const id = ctx.request.body.id
         const token = ctx.request.headers.authorization;
-        const secret = 'JimmyLam';
         try{
             const payload = jwt.verify(token,secret);
             const account = payload.account;
@@ -59,14 +59,11 @@ module.exports = {
         const name = ctx.request.body.account
         try{
             const data = await mysql.findPostByUserPage(name,page)
-            ctx.body = {
-                code:1,
-                data
-            }
+            ctx.body = data
         }catch(e){
-            console.log(e)
+            ctx.status = 500
             ctx.body = {
-                code:0
+                message:'服务端出现了问题，请联系Murphy'
             }
         }
     },
@@ -74,7 +71,6 @@ module.exports = {
         const id = ctx.request.body.id
         const postid = ctx.request.body.postid
         const token = ctx.request.headers.authorization;
-        const secret = 'JimmyLam';
         try{
             const payload = jwt.verify(token,secret);
             try{
@@ -107,7 +103,6 @@ module.exports = {
     },
     async sendComment(ctx){
         const token = ctx.request.headers.authorization;
-        const secret = 'JimmyLam';
         try{
             const payload = jwt.verify(token,secret);
             const name = payload.account;
@@ -170,7 +165,6 @@ module.exports = {
     },
     async uploadAvatorValid(ctx){
         const token = ctx.request.headers.authorization;
-        const secret = 'JimmyLam';
         try{
             const payload = jwt.verify(token,secret);
             const account = payload.account;
@@ -188,64 +182,65 @@ module.exports = {
     },
     //上传头像图片
     async uploadAvator(ctx){
-        const account = ctx.request.body.account
+        const token = ctx.request.headers.authorization;
         const flag = ctx.request.files.file.size
-        if(flag===0){
-            return
-        }else{
-            //取出数据库上次存的图片以删除
-            const lastAvator = await mysql.findUserAvator(account)
-            const deleteFile = path.join(__dirname, '../public/uploads/avator')+'/'+lastAvator[0].avator
-            fs.unlink(deleteFile,function(error){
-                if(error){
-                    console.log(error);
-                    return false;
-                }
-            })
-            const file = ctx.request.files.file; // 获取上传文件
-            // 创建可读流
-            const reader = fs.createReadStream(file.path);
-            //构建文件名
-            let time = new Date().getTime();
-            const fileName = account+time
-            let extArr = file.name.split('.')
-            let dotNum = extArr.length
-            let ext = extArr[dotNum-1]
-            const name = `${fileName}.${ext}`
-            let filePath = path.join(__dirname, '../public/uploads/avator') + '/' +name;
-	    console.log(filePath);
-            //文件名构建结束
-            // 创建可写流
-            const upStream = fs.createWriteStream(filePath);
-            // 可读流通过管道写入可写流
-            reader.pipe(upStream);
-            try{
-                await mysql.PersonalAvatorChange(name,account);
-                await mysql.CommentAvatorChange(name,account)
-                ctx.body = {
-                    code:1
-                }    
-            }catch(e){
-                console.log(e)
-                ctx.body = {
-                    code:0
-                }
-            }            
-        }
 
-        
+        try{
+            const {account} = jwt.verify(token,secret)
+            if(flag===0){
+                return
+            }else{
+                try{
+                //取出数据库上次存的图片以删除
+                const lastAvator = await mysql.findUserAvator(account)
+                const deleteFile = path.join(__dirname, '../public/uploads/avator')+'/'+lastAvator[0].avator
+                fs.unlink(deleteFile,function(error){
+                    if(error){
+                        console.log(error);
+                        return false;
+                    }
+                })
+                const file = ctx.request.files.file; // 获取上传文件
+                // 创建可读流
+                const reader = fs.createReadStream(file.path);
+                //构建文件名
+                let time = new Date().getTime();
+                const fileName = account+time
+                let extArr = file.name.split('.')
+                let dotNum = extArr.length
+                let ext = extArr[dotNum-1]
+                const name = `${fileName}.${ext}`
+                let filePath = path.join(__dirname, '../public/uploads/avator') + '/' +name;
+                //文件名构建结束
+                // 创建可写流
+                const upStream = fs.createWriteStream(filePath);
+                // 可读流通过管道写入可写流
+                reader.pipe(upStream);
+                    await mysql.PersonalAvatorChange(name,account);
+                    await mysql.CommentAvatorChange(name,account)
+                    ctx.body = {
+                        message:'更改成功'
+                    }    
+                }catch(e){
+                    ctx.status = 500
+                    ctx.body = {
+                        message:'服务器出现问题，请联系Murphhy'
+                    }
+                }            
+            }
+        }catch(e){
+            ctx.body = {
+                e
+            }
+            ctx.status = 401
+        }
 
     },
     //发文章
     async sendEdit(ctx){
         const token = ctx.request.headers.authorization;
-        const secret = 'JimmyLam'
         try{
-            const title = ctx.request.body.title;
-            let content = ctx.request.body.content;
-            const nickname = ctx.request.body.nickname;
-            content = content.replace(/\n/g,'<br/>');
-            content = content.replace(/\s/g, ' '); 
+            const {title,content,nickname} = ctx.request.body
             const payload = jwt.verify(token,secret);
             const account = payload.account;
             let time = new Date();
@@ -256,15 +251,15 @@ module.exports = {
                     code:1
                 }
             }catch(e){
-                console.log(e)
+                ctx.status = 500
                 ctx.body = {
-                    code:0
+                    message:'服务器遇到问题，请联系开发者Murphy'
                 }
             }            
         }catch(e){
-            console.log(e)
+            ctx.status = 401
             ctx.body = {
-                code:-1
+                message:'帐号校验信息失效，请重新登入'
             }
         }
         
@@ -272,7 +267,6 @@ module.exports = {
     //个人信息修改
     async PersonalInfoChange(ctx){
         const token = ctx.request.headers.authorization;
-        const secret = 'JimmyLam'
         const word = ctx.request.body.word;
         const nickname = ctx.request.body.nickname;
         try{
@@ -306,14 +300,11 @@ module.exports = {
         const id = ctx.request.body.id
         try{
             const data = await mysql.findDataById(id)
-            ctx.body = {
-                code:1,
-                data
-            }
+            ctx.body = data[0]
         }catch(e){
-            console.log(e)
+            ctx.status = 500
             ctx.body = {
-                code:0
+                message:'服务端出现问题了，请联系开发者Murphy'
             }
         }
     },
@@ -356,7 +347,6 @@ module.exports = {
     //一进入网页自动登录
     async memoryLogin(ctx){
         const token = ctx.request.headers.authorization;
-        const secret = 'JimmyLam';
         try{
             const payload = jwt.verify(token,secret);
             const account = payload.account;
@@ -368,8 +358,6 @@ module.exports = {
             try{
                 const returnInfo = await mysql.loginFunction([account,password]);
                 ctx.body = {
-                    code:1,
-                    returnInfo:returnInfo[0],
                     token:newToken,
                     account:returnInfo[0].name,
                     nickname:returnInfo[0].nickname,
@@ -377,16 +365,16 @@ module.exports = {
                     avator:returnInfo[0].avator
                 }
             }catch(e){
-                console.log(e)
+                ctx.status = 500
                 ctx.body = {
-                    code:0
+                    message:'服务器出现问题，请联系Murphy'
                 }
             }
             
         }catch(e){
-            console.log(e)
+            ctx.status = 401
             ctx.body = {
-                code:-1
+                message:'登陆鉴权信息已过期，请重新登入'
             }
         }
     },
@@ -398,29 +386,21 @@ module.exports = {
             const returnInfo = await mysql.loginFunction([account,password]);
             if(returnInfo[0].pass.trim()==password.trim()){
                 const content = {account,password};
-                const secretOrPrivateKey="JimmyLam";
-                const token = jwt.sign(content, secretOrPrivateKey, {
+                const token = jwt.sign(content, secret, {
                     expiresIn: 10800  // 1小时过期
                 });
                 const nickname = returnInfo[0].nickname;
                 const word = returnInfo[0].word;
                 const avator = returnInfo[0].avator;
-                ctx.cookies.set(
-                    'token',token,{
-                        domain:'127.0.0.1:8081', // 写cookie所在的域名
-                        path:'/',       // 写cookie所在的路径
-                        httpOnly:true,  // 是否只用于http请求中获取
-                        expires:  new Date(new Date().getTime()+60 * 60 *24)
-                    }
-                )
                 ctx.body = {
                     account,
                     word,
                     nickname,
-                    avator
+                    avator,
+                    token
                 }
             }else{
-                ctx.status = 401
+                ctx.status = 403
                 ctx.body = {
                     message:'密码校验错误'
                 }
