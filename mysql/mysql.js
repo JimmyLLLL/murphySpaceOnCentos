@@ -134,6 +134,12 @@ let insertPost = function( value ) {
   return query( _sql, value )
 }
 
+// 更新修改文章
+let updatePost = function(values,id){
+  let _sql = `update posts set name=?,title=?,content=?,moment=? where id=${id}`
+  return query(_sql,values)
+}
+
 //更新昵称，与个性签名
 let PersonalInfoChange = function( value,name ) {
   let _sql = `update users set nickname=?,word=? where name="${name}";`
@@ -212,11 +218,7 @@ let findPostByUserPage = function (name,page) {
   let _sql = ` select * FROM posts where uid="${name}" order by id desc limit ${(page-1)*10},10 ;`
   return query( _sql)
 }
-// 更新修改文章
-let updatePost = function(values){
-  let _sql = `update posts set  title=?,content=?,md=? where id=?`
-  return query(_sql,values)
-}
+
 // 删除文章
 let deletePost = function(id){
   let _sql = `delete from posts where id = ${id}`

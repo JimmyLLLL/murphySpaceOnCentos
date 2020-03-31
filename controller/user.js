@@ -5,37 +5,39 @@ const fs = require('fs')
 const path = require('path')
 const secret = 'JimmyLam';
 
+const err500 = '服务端出现问题了，请联系开发者Murphy'
+const err401 = '登陆鉴权信息已过期，请重新登入'
+
 
 module.exports = {
     async handleBlogDelete(ctx){
         const id = ctx.request.body.id
         const token = ctx.request.headers.authorization;
         try{
-            const payload = jwt.verify(token,secret);
-            const account = payload.account;
+            const {account} = jwt.verify(token,secret);
             const post = await mysql.findDataById(id);
-            console.log(post[0])
             if(post[0].uid===account){
                 try{
                     await mysql.deletePost(id)
                     ctx.body = {
-                        code:1
+                        message:'删除成功'
                     }
                 }catch(e){
-                    console.log(e)
+                    ctx.status = 500
                     ctx.body = {
-                        code:-1
+                        message:err500
                     }
                 }
             }else{
+                ctx.body = 202
                 ctx.body = {
-                    code:-2
+                    message:'非用户执行删除'
                 }
             }
         }catch(e){
-            console.log(e)
+            ctx.status = 401
             ctx.body = {
-                code:0
+                message:err401
             }
         }
     },
@@ -63,7 +65,7 @@ module.exports = {
         }catch(e){
             ctx.status = 500
             ctx.body = {
-                message:'服务端出现了问题，请联系Murphy'
+                message:err500
             }
         }
     },
@@ -94,12 +96,17 @@ module.exports = {
         
     },
     async getComment(ctx){
-        const index = ctx.request.body.id
-        const returnInfo = await mysql.getAllComment(index)
-        ctx.body = {
-            code:1,
-            data:returnInfo
+        try{
+            const index = ctx.request.body.id
+            const returnInfo = await mysql.getAllComment(index)
+            ctx.body = returnInfo            
+        }catch(e){
+            ctx.status = 500
+            ctx.body = {
+                message:err500
+            }
         }
+
     },
     async sendComment(ctx){
         const token = ctx.request.headers.authorization;
@@ -110,19 +117,24 @@ module.exports = {
             const content = ctx.request.body.value;
             let moment = new Date();
             moment = moment.toLocaleString();
-            const userdata = await mysql.findUserData(name);
-            const nickname = userdata[0].nickname;
-            const avator = userdata[0].avator;
-            await mysql.insertComment([name,nickname,content,moment,postid,avator])
-            const returnInfo = await mysql.getAllComment(postid)
-            ctx.body = {
-                code:1,
-                data:returnInfo
+            try{
+                const userdata = await mysql.findUserData(name);
+                const nickname = userdata[0].nickname;
+                const avator = userdata[0].avator;
+                await mysql.insertComment([name,nickname,content,moment,postid,avator])
+                const returnInfo = await mysql.getAllComment(postid)
+                ctx.body = returnInfo              
+            }catch(e){
+                ctx.status = 500
+                ctx.body = {
+                    message:err500
+                }
             }
+
         }catch(e){
-            console.log(e)
+            ctx.status = 401
             ctx.body = {
-                code:-1
+                message:err401
             }
         }        
     },
@@ -180,6 +192,65 @@ module.exports = {
         }
       
     },
+    //上传博客图片
+    async uploadBlogPhoto(ctx){
+        const token = ctx.request.headers.authorization;
+        const size = ctx.request.files.img.size
+        try{
+            const {account} = jwt.verify(token,secret)
+            if(size===0){
+                return
+            }else{
+                try{
+                //取出数据库上次存的图片以删除
+                //const lastAvator = await mysql.findUserAvator(account)
+                //const deleteFile = path.join(__dirname, '../public/uploads/avator')+'/'+lastAvator[0].avator
+                /*fs.unlink(deleteFile,function(error){
+                    if(error){
+                        console.log(error);
+                        return false;
+                    }
+                })*/
+                const file = ctx.request.files.img; // 获取上传文件
+                // 创建可读流
+                const reader = fs.createReadStream(file.path);
+                //构建文件名
+                const time = new Date().getTime();
+                const fileName = time
+                const extArr = file.name.split('.')
+                const dotNum = extArr.length
+                const ext = extArr[dotNum-1]
+                const name = `${fileName}.${ext}`
+                await fs.mkdir(path.join(__dirname, `../public/uploads/blog/${account}`), { recursive: true }, (err) => {
+                    if (err) throw err;
+                 });
+                const filePath = path.join(__dirname, `../public/uploads/blog/${account}`) + '/' +name;
+                //文件名构建结束
+                // 创建可写流
+                const upStream = fs.createWriteStream(filePath);
+                // 可读流通过管道写入可写流
+                reader.pipe(upStream);
+
+                    ctx.body = {
+                        url:`http://www.jinmylam.xin:8003/uploads/blog/${account}/${name}`,
+                        message:'上传成功'
+                    }    
+                }catch(e){
+                    ctx.status = 500
+                    ctx.body = {
+                        e,
+                        message:'服务器出现问题，请联系Murphhy'
+                    }
+                }            
+            }
+        }catch(e){
+            ctx.body = {
+                message:err401
+            }
+            ctx.status = 401
+        }
+
+    },
     //上传头像图片
     async uploadAvator(ctx){
         const token = ctx.request.headers.authorization;
@@ -230,11 +301,54 @@ module.exports = {
             }
         }catch(e){
             ctx.body = {
-                e
+                message:err401
             }
             ctx.status = 401
         }
 
+    },
+    async updateArticle(ctx){
+        const token = ctx.request.headers.authorization;
+        try{
+            const {title,content,nickname,id} = ctx.request.body
+            const {account} = jwt.verify(token,secret);
+            let data
+            try{
+                data = await mysql.findDataById(id)
+                data = data[0].uid                
+            }catch{
+                ctx.status = 500;
+                ctx.body = {
+                    message:err500
+                }
+            }
+
+            if(account===data){
+                const time = new Date().toLocaleString();
+                try{
+                    await mysql.updatePost([nickname,title,content,time],id)
+                    ctx.body = {
+                        message:'修改成功'
+                    }
+                }catch(e){
+                    ctx.status = 500
+                    ctx.body = {
+                        message:'服务器遇到问题，请联系开发者Murphy'
+                    }
+                }                 
+            }else{
+                ctx.status = 202
+                ctx.body = {
+                    message:'非法请求'
+                }
+            }
+           
+        }catch(e){
+            ctx.status = 401
+            ctx.body = {
+                message:err401
+            }
+        }
     },
     //发文章
     async sendEdit(ctx){
@@ -253,13 +367,14 @@ module.exports = {
             }catch(e){
                 ctx.status = 500
                 ctx.body = {
+                    e,
                     message:'服务器遇到问题，请联系开发者Murphy'
                 }
             }            
         }catch(e){
             ctx.status = 401
             ctx.body = {
-                message:'帐号校验信息失效，请重新登入'
+                message:err401
             }
         }
         
@@ -267,30 +382,27 @@ module.exports = {
     //个人信息修改
     async PersonalInfoChange(ctx){
         const token = ctx.request.headers.authorization;
-        const word = ctx.request.body.word;
-        const nickname = ctx.request.body.nickname;
+        const {word,nickname} = ctx.request.body
         try{
-            const payload = jwt.verify(token,secret);
-            const account = payload.account;
+            const {account} = jwt.verify(token,secret);
             try{
                 await mysql.PersonalInfoChange([nickname,word],account)
                 ctx.body = {
-                    code:1,
                     newInfo:{
                         word,
                         nickname
                     }
                 }
             }catch(e){
-                console.log(e)
+                ctx.status = 500
                 ctx.body = {
-                    code:0
+                    message:err500
                 }
             }            
         }catch(e){
-            console.log(e)
+            ctx.status = 401
             ctx.body = {
-                code:-1
+                message:err401
             }
         }
              
@@ -299,12 +411,13 @@ module.exports = {
     async enterBlog(ctx){
         const id = ctx.request.body.id
         try{
-            const data = await mysql.findDataById(id)
+            const data = await mysql.findDataById(id)     
             ctx.body = data[0]
+            
         }catch(e){
             ctx.status = 500
             ctx.body = {
-                message:'服务端出现问题了，请联系开发者Murphy'
+                message:err500
             }
         }
     },
@@ -320,7 +433,7 @@ module.exports = {
         }catch(e){
             ctx.status = 500
             ctx.body = {
-                message:'服务端错误，请联系开发者 Murphy Lam'
+                message:err500
             }
         }
     },
@@ -374,7 +487,7 @@ module.exports = {
         }catch(e){
             ctx.status = 401
             ctx.body = {
-                message:'登陆鉴权信息已过期，请重新登入'
+                message:err401
             }
         }
     },

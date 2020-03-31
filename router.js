@@ -19,4 +19,6 @@ router.post('/blog/deleteComment',user.deleteComment)
 router.post('/blog/personalGetBlog',user.personalGetBlog)
 router.post('/blog/findDataByName',user.findDataByName)
 router.post('/blog/handleBlogDelete',user.handleBlogDelete)
+router.post('/blog/updateArticle',user.updateArticle)
+router.post('/blog/uploadBlogPhoto',user.uploadBlogPhoto)
 module.exports = router
