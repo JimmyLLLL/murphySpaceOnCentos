@@ -215,7 +215,7 @@ let findPostByPage = function (page) {
 }
 // 查询个人分页文章
 let findPostByUserPage = function (name,page) {
-  let _sql = ` select * FROM posts where uid="${name}" order by id desc limit ${(page-1)*10},10 ;`
+  let _sql = ` select * FROM posts where uid="${name}" order by id desc limit ${(page-1)*20},20 ;`
   return query( _sql)
 }
 

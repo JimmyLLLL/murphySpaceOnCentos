@@ -78,19 +78,18 @@ module.exports = {
             try{
                 await mysql.deleteComment(id)
                 const returnInfo = await mysql.getAllComment(postid)
-                ctx.body = {
-                    code:1,
-                    returnInfo
-                }                
+                ctx.body = returnInfo               
             }catch(e){
+                ctx.status = 500
                 ctx.body = {
-                    code:0
+                    message:err500
                 }
             }
             
         }catch{
+            ctx.status = 401
             ctx.body = {
-                code:-1
+                message:err401
             }
         }
         
