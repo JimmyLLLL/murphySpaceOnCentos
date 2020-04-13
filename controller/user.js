@@ -44,15 +44,13 @@ module.exports = {
     async findDataByName(ctx){
         const name = ctx.request.body.name
         try{
-            const data = await mysql.findDataByName(name)
-            ctx.body = {
-                code:1,
-                data
-            }
+            let data = await mysql.findDataByName(name)
+            data = data[0]
+            delete data.pass
+            ctx.body = data
         }catch(e){
-            console.log(e)
             ctx.body = {
-                code:0
+                message:err500
             }
         } 
     },
@@ -141,20 +139,19 @@ module.exports = {
         const account = ctx.request.body.account
         try{
             let data = await mysql.getExistAccount(account)
-            data = data[0].name
+            console.log(data[0])
+            data = data[0] ? data[0].name:''
             if(data==""||data==undefined){
                 ctx.body = {
-                    code:0
+                    canRes:true
                 }
             }else{
                 ctx.body = {
-                    code:1
+                    canRes:false
                 }
             }
         }catch(e){
-            ctx.body = {
-                code:0
-            }
+            ctx.body = 500
         }
 
     },
@@ -446,12 +443,12 @@ module.exports = {
         try {
             await mysql.insertData([account,password,'',time]);
             ctx.body = {
-                code:1
+                message:'注册成功'
             }
         }catch(e){
             console.log(e)
             ctx.body = {
-                code:0
+                message:err500
             }
         }
 
